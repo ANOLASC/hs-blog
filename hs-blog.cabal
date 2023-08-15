@@ -29,13 +29,14 @@ common common-settings
 library
     import:             common-settings
     hs-source-dirs:     src
-    build-depends:      base ^>=4.16.3.0    
+    build-depends:      base ^>=4.16.3.0, filepath, directory
     exposed-modules:
         HsBlog
             HsBlog.Convert
             HsBlog.Html
                 HsBlog.Html.Internal
-            HsBlog.Markup         
+            HsBlog.Markup
+            HsBlog.Directory      
 
 executable hs-blog
     main-is:          Main.hs
@@ -45,6 +46,6 @@ executable hs-blog
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
-    build-depends:    base ^>=4.16.3.0, hs-blog, optparse-applicative, directory
+    build-depends:    base ^>=4.16.3.0, hs-blog, optparse-applicative, filepath, directory
     hs-source-dirs:   app
     default-language: Haskell2010

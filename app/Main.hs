@@ -4,11 +4,19 @@
 -- | Entry point for the hs-blog-gen program
 module Main where
 
+import Control.Exception
 import qualified HsBlog
 import OptParse
 import System.Directory (doesFileExist)
 import System.Exit (exitFailure)
 import System.IO
+
+data MyException
+  = ErrZero
+  | ErrOdd Int
+  deriving (Show)
+
+instance Exception MyException
 
 main :: IO ()
 main = do
@@ -16,30 +24,42 @@ main = do
   case options of
     ConvertDir input output ->
       HsBlog.convertDirectory input output
-    ConvertSingle input output -> do
-      (title, inputHandle) <-
-        case input of
-          Stdin ->
-            pure ("", stdin)
-          InputFile file ->
-            (,) file <$> openFile file ReadMode
+    ConvertSingle input output ->
+      let -- Here, action is the next steps we want to do.
+          -- It takes as input the values we produce,
+          -- uses it, and then returns control for us to clean-up
+          -- afterwards.
+          withInputHandle :: (String -> Handle -> IO a) -> IO a
+          withInputHandle action =
+            case input of
+              Stdin ->
+                action "" stdin
+              InputFile file ->
+                withFile file ReadMode (action file)
 
-      outputHandle <-
-        case output of
-          Stdout -> pure stdout
-          OutputFile file -> do
-            exists <- doesFileExist file
-            shouldOpenFile <-
-              if exists
-                then confirm
-                else pure True
-            if shouldOpenFile
-              then openFile file WriteMode
-              else exitFailure
+          -- Note that in both functions our action can return any `a`
+          -- it wants.
+          withOutputHandle :: (Handle -> IO a) -> IO a
+          withOutputHandle action =
+            case output of
+              Stdout ->
+                action stdout
+              OutputFile file -> do
+                exists <- doesFileExist file
+                shouldOpenFile <-
+                  if exists
+                    then confirm
+                    else pure True
+                if shouldOpenFile
+                  then withFile file WriteMode action
+                  else exitFailure
+       in withInputHandle (\title -> withOutputHandle . HsBlog.convertSingle title)
 
-      HsBlog.convertSingle title inputHandle outputHandle
-      hClose inputHandle
-      hClose outputHandle
+sayDiv2 :: Int -> IO ()
+sayDiv2 n
+  | n == 0 = throwIO ErrZero
+  | odd n = throwIO (ErrOdd n)
+  | otherwise = print (n `div` 2)
 
 ------------------------------------------------
 
